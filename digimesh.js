@@ -6,7 +6,7 @@
 var EventEmitter = require('events');
 var util = require('util');
 // needed for serial comms
-var SerialPort = require('serialport').SerialPort;
+var SerialPort = require('serialport');
 
 // the main class
 // config:  device -- device node, eg /dev/ttyU0
@@ -58,6 +58,7 @@ var XbeeDigiMesh = function(config, callback) {
     this.FRAME_TRANSMIT_REQUEST = 0x10;
     this.FRAME_TRANSMIT_STATUS = 0x8b;
     this.FRAME_RECEIVE_PACKET = 0x90;
+    this.FRAME_JOIN_NOTIFICATION = 0x95;
 
     this.ERR_QUEUE_FULL = 'ERR: Tx queue is full, try again later';
 
@@ -188,6 +189,13 @@ XbeeDigiMesh.prototype.handle_receive_packet = function(packet) {
         data: packet.slice(12, packet.length),
     }
     this.emit('message_received', data);
+};
+
+XbeeDigiMesh.prototype.handle_join_notification = function(packet) {
+	var data = {
+		addr: this.read_addr(packet, 1)
+	}
+	this.emit('xbee_joined', data);
 };
 
 // this is returned for each transmit with a frame_id
@@ -508,6 +516,10 @@ XbeeDigiMesh.prototype.parse_byte = function(c) {
                     this.handle_receive_packet(packet);
                     //this.emit('packet_receive_packet', packet);
                     break;
+                case this.FRAME_JOIN_NOTIFICATION:
+					console.log('New Xbee joined');
+					this.handle_join_notification(packet);
+					break;
                 default:
                     this.emit('error', 'unknown packet type received: ' + this.packet[0]);
             }
